@@ -1,7 +1,8 @@
 ﻿#include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <iostream>
-
+#include <SFML/System/Sleep.hpp>
+#include <SFML/System/Time.hpp>
 class Ball {
 public:
     sf::CircleShape shape;
@@ -112,7 +113,7 @@ int main() {
         }
     }
 
-    enum class GameState { MENU, PLAYING, GAME_OVER, EXIT };
+    enum class GameState { MENU, PLAYING, GAME_OVER, EXIT, PAUSED };
     GameState gameState = GameState::MENU;
     int selectedOption = 0;
     int score = 0;
@@ -121,7 +122,7 @@ int main() {
     scoreText.setFont(menu.font);
     scoreText.setCharacterSize(30);
     scoreText.setFillColor(sf::Color::Yellow);
-    scoreText.setPosition(10, 550);
+    scoreText.setPosition(10, 520);
 
     // Load background image
     sf::Texture backgroundTexture;
@@ -131,80 +132,106 @@ int main() {
     }
     sf::Sprite backgroundSprite(backgroundTexture);
 
+    bool escapePressed = false;
+
     while (window.isOpen()) {
         sf::Event event;
-        while (window.pollEvent(event)) {
+        if (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
-
-            if (gameState == GameState::MENU) {
-                if (event.type == sf::Event::KeyPressed) {
-                    if (event.key.code == sf::Keyboard::Up) {
-                        menu.startText.setFillColor(sf::Color::White);
-                        menu.exitText.setFillColor(sf::Color::White);
-                        selectedOption = (selectedOption - 1 + 2) % 2;
-                        if (selectedOption == 0) {
-                            menu.startText.setFillColor(sf::Color::Yellow);
-                        }
-                        else {
-                            menu.exitText.setFillColor(sf::Color::Yellow);
-                        }
-                    }
-                    else if (event.key.code == sf::Keyboard::Down) {
-                        menu.startText.setFillColor(sf::Color::White);
-                        menu.exitText.setFillColor(sf::Color::White);
-                        selectedOption = (selectedOption + 1) % 2;
-                        if (selectedOption == 0) {
-                            menu.startText.setFillColor(sf::Color::Yellow);
-                        }
-                        else {
-                            menu.exitText.setFillColor(sf::Color::Yellow);
-                        }
-                    }
-                    else if (event.key.code == sf::Keyboard::Return) {
-                        if (selectedOption == 0) {
-                            gameState = GameState::PLAYING;
-                            score = 0; // Reset the score when starting a new game
-                            ball.reset(sf::Vector2f(0.1f, -0.1f)); // Restart the ball
-                            for (auto& brick : bricks) {
-                                brick.reset();
-                            }
-                        }
-                        else {
-                            gameState = GameState::EXIT;
-                        }
-                    }
+            else if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Escape) {
+                    escapePressed = true;
                 }
             }
-
-            if (gameState == GameState::PLAYING) {
-                paddle.velocity.x = 0.0f;
-
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) &&
-                    paddle.shape.getPosition().x > 0) {
-                    paddle.velocity.x = -0.4f;
-                }
-
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) &&
-                    paddle.shape.getPosition().x + paddle.shape.getSize().x < window.getSize().x) {
-                    paddle.velocity.x = 0.4f;
+            else if (event.type == sf::Event::KeyReleased) {
+                if (event.key.code == sf::Keyboard::Escape) {
+                    escapePressed = false;
                 }
             }
+        }
 
-            if (gameState == GameState::GAME_OVER) {
-                if (event.type == sf::Event::KeyPressed) {
-                    if (event.key.code == sf::Keyboard::Return) {
+        if (gameState == GameState::MENU) {
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Up) {
+                    menu.startText.setFillColor(sf::Color::White);
+                    menu.exitText.setFillColor(sf::Color::White);
+                    selectedOption = (selectedOption - 1 + 2) % 2;
+                    if (selectedOption == 0) {
+                        menu.startText.setFillColor(sf::Color::Yellow);
+                    }
+                    else {
+                        menu.exitText.setFillColor(sf::Color::Yellow);
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::Down) {
+                    menu.startText.setFillColor(sf::Color::White);
+                    menu.exitText.setFillColor(sf::Color::White);
+                    selectedOption = (selectedOption + 1) % 2;
+                    if (selectedOption == 0) {
+                        menu.startText.setFillColor(sf::Color::Yellow);
+                    }
+                    else {
+                        menu.exitText.setFillColor(sf::Color::Yellow);
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::Return) {
+                    if (selectedOption == 0) {
                         gameState = GameState::PLAYING;
-                        score = 0; // Reset the score when restarting
+                        score = 0; // Reset the score when starting a new game
                         ball.reset(sf::Vector2f(0.1f, -0.1f)); // Restart the ball
                         for (auto& brick : bricks) {
                             brick.reset();
                         }
                     }
-                    else if (event.key.code == sf::Keyboard::Escape) {
+                    else {
                         gameState = GameState::EXIT;
                     }
+                }
+            }
+        }
+
+        if (gameState == GameState::PLAYING) {
+            if (escapePressed) {
+                gameState = GameState::PAUSED;
+                sf::sleep(sf::milliseconds(200));
+            }
+
+            paddle.velocity.x = 0.0f;
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) &&
+                paddle.shape.getPosition().x > 0) {
+                paddle.velocity.x = -0.4f;
+            }
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) &&
+                paddle.shape.getPosition().x + paddle.shape.getSize().x < window.getSize().x) {
+                paddle.velocity.x = 0.4f;
+            }
+        }
+
+        if (gameState == GameState::PAUSED) {
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Return)) {
+                gameState = GameState::PLAYING;
+            }
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                gameState = GameState::EXIT;
+            }
+        }
+
+        if (gameState == GameState::GAME_OVER) {
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Return) {
+                    gameState = GameState::PLAYING;
+                    score = 0; // Reset the score when restarting
+                    ball.reset(sf::Vector2f(0.1f, -0.1f)); // Restart the ball
+                    for (auto& brick : bricks) {
+                        brick.reset();
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::Escape) {
+                    gameState = GameState::EXIT;
                 }
             }
         }
@@ -259,8 +286,11 @@ int main() {
             }
 
             // Draw scoreText on top of everything
-            scoreText.setString("Bricks Destroyed: " + std::to_string(score));
+            scoreText.setString("Press Esc to Pause\nBricks Destroyed: " + std::to_string(score));
             window.draw(scoreText);
+
+
+
 
             // Check if the ball touched the ground
             if (ball.shape.getPosition().y + ball.shape.getRadius() * 2 >= window.getSize().y) {
@@ -293,6 +323,35 @@ int main() {
 
             window.draw(gameOverText);
             window.draw(restartText);
+            window.draw(exitText);
+        }
+        break;
+
+        case GameState::PAUSED:
+        {
+            sf::Text pausedText;
+            pausedText.setFont(menu.font);
+            pausedText.setString("Paused");
+            pausedText.setCharacterSize(50);
+            pausedText.setFillColor(sf::Color::Yellow);
+            pausedText.setPosition(window.getSize().x / 2 - 100, window.getSize().y / 2 - 25);
+
+            sf::Text continueText;
+            continueText.setFont(menu.font);
+            continueText.setString("Press Enter to Continue");
+            continueText.setCharacterSize(30);
+            continueText.setFillColor(sf::Color::White);
+            continueText.setPosition(window.getSize().x / 2 - 200, window.getSize().y / 2 + 50);
+
+            sf::Text exitText;
+            exitText.setFont(menu.font);
+            exitText.setString("Press Esc to Exit");
+            exitText.setCharacterSize(30);
+            exitText.setFillColor(sf::Color::White);
+            exitText.setPosition(window.getSize().x / 2 - 200, window.getSize().y / 2 + 100);
+
+            window.draw(pausedText);
+            window.draw(continueText);
             window.draw(exitText);
         }
         break;
