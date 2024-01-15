@@ -3,25 +3,30 @@
 #include <iostream>
 #include <SFML/System/Sleep.hpp>
 #include <SFML/System/Time.hpp>
+#include <vector>
+#include <algorithm>
+
 class Ball {
 public:
     sf::CircleShape shape;
     sf::Vector2f velocity;
+    float speedMultiplier;
 
-    Ball(float radius, sf::Vector2f initialVelocity)
-        : velocity(initialVelocity) {
+    Ball(float radius, sf::Vector2f initialVelocity, float speedMultiplier)
+        : velocity(initialVelocity), speedMultiplier(speedMultiplier) {
         shape.setRadius(radius);
         shape.setFillColor(sf::Color::Red);
         shape.setPosition(400, 300);
     }
 
     void move() {
-        shape.move(velocity);
+        shape.move(speedMultiplier * velocity);
     }
 
-    void reset(sf::Vector2f initialVelocity) {
+    void reset(sf::Vector2f initialVelocity, float speedMultiplier) {
         shape.setPosition(400, 300);
         velocity = initialVelocity;
+        this->speedMultiplier = speedMultiplier;
     }
 };
 
@@ -63,12 +68,19 @@ class Menu {
 public:
     sf::Text startText;
     sf::Text exitText;
+    sf::Text levelText;
     sf::Font font;
-
+    sf::Text levelSelectText;
     Menu(float screenWidth, float screenHeight) {
         if (!font.loadFromFile("images/arial.ttf")) {
             std::cerr << "Error loading font\n";
         }
+
+        levelSelectText.setFont(font);
+        levelSelectText.setString("Select Starting Level");
+        levelSelectText.setCharacterSize(30);
+        levelSelectText.setFillColor(sf::Color::White);
+        levelSelectText.setPosition(screenWidth / 2 - 150, screenHeight / 2 + 100);
 
         startText.setFont(font);
         startText.setString("Start");
@@ -81,6 +93,12 @@ public:
         exitText.setCharacterSize(30);
         exitText.setFillColor(sf::Color::White);
         exitText.setPosition(screenWidth / 2 - 50, screenHeight / 2 + 50);
+
+        levelText.setFont(font);
+        levelText.setString("Select Level");
+        levelText.setCharacterSize(30);
+        levelText.setFillColor(sf::Color::White);
+        levelText.setPosition(screenWidth / 2 - 70, screenHeight / 2);
     }
 };
 
@@ -91,19 +109,16 @@ sf::Color getRandomColor() {
     return sf::Color(red, green, blue);
 }
 
-int main() {
-    sf::RenderWindow window(sf::VideoMode(700, 600), "Arkanoid Game");
+void resetGame(Ball& ball, Paddle& paddle, std::vector<Brick>& bricks, int& score, int& level) {
+    ball.reset(sf::Vector2f(0.1f, -0.1f), 1.0f);
+    paddle.velocity = sf::Vector2f(0.0f, 0.0f);
+    score = 0;
 
-    Menu menu(window.getSize().x, window.getSize().y);
-
-    Ball ball(10.0f, sf::Vector2f(0.1f, -0.1f)); // Ball starts moving upwards
-    Paddle paddle(150.0f, 10.0f, sf::Vector2f(0.0f, 0.0f));
-
-    const int brickRowCount = 5;
-    const int brickColumnCount = 10;
+    bricks.clear();
+    const int brickRowCount = 5 + level;
+    const int brickColumnCount = 10 + level;
     const float brickWidth = 70.0f;
     const float brickHeight = 20.0f;
-    std::vector<Brick> bricks;
 
     for (int i = 0; i < brickRowCount; ++i) {
         for (int j = 0; j < brickColumnCount; ++j) {
@@ -112,11 +127,29 @@ int main() {
                 sf::Vector2f(j * brickWidth, i * brickHeight)));
         }
     }
+}
+
+int main() {
+    sf::RenderWindow window(sf::VideoMode(700, 600), "Arkanoid Game");
+
+    Menu menu(window.getSize().x, window.getSize().y);
+
+    Ball ball(10.0f, sf::Vector2f(0.1f, -0.1f), 1.0f);
+    Paddle paddle(150.0f, 10.0f, sf::Vector2f(0.0f, 0.0f));
+
+    std::vector<Brick> bricks;
+    int score = 0;
+    int level = 1; // Starting level
 
     enum class GameState { MENU, PLAYING, GAME_OVER, EXIT, PAUSED };
     GameState gameState = GameState::MENU;
     int selectedOption = 0;
-    int score = 0;
+    sf::Text levelText;
+
+    levelText.setFont(menu.font);
+    levelText.setCharacterSize(30);
+    levelText.setFillColor(sf::Color::Yellow);
+    levelText.setPosition(550, 550);
 
     sf::Text scoreText;
     scoreText.setFont(menu.font);
@@ -157,9 +190,13 @@ int main() {
                 if (event.key.code == sf::Keyboard::Up) {
                     menu.startText.setFillColor(sf::Color::White);
                     menu.exitText.setFillColor(sf::Color::White);
-                    selectedOption = (selectedOption - 1 + 2) % 2;
+                    menu.levelSelectText.setFillColor(sf::Color::White);
+                    selectedOption = (selectedOption - 1 + 3) % 3;
                     if (selectedOption == 0) {
                         menu.startText.setFillColor(sf::Color::Yellow);
+                    }
+                    else if (selectedOption == 1) {
+                        menu.levelSelectText.setFillColor(sf::Color::Yellow);
                     }
                     else {
                         menu.exitText.setFillColor(sf::Color::Yellow);
@@ -168,9 +205,13 @@ int main() {
                 else if (event.key.code == sf::Keyboard::Down) {
                     menu.startText.setFillColor(sf::Color::White);
                     menu.exitText.setFillColor(sf::Color::White);
-                    selectedOption = (selectedOption + 1) % 2;
+                    menu.levelSelectText.setFillColor(sf::Color::White);
+                    selectedOption = (selectedOption + 1) % 3;
                     if (selectedOption == 0) {
                         menu.startText.setFillColor(sf::Color::Yellow);
+                    }
+                    else if (selectedOption == 1) {
+                        menu.levelSelectText.setFillColor(sf::Color::Yellow);
                     }
                     else {
                         menu.exitText.setFillColor(sf::Color::Yellow);
@@ -179,14 +220,29 @@ int main() {
                 else if (event.key.code == sf::Keyboard::Return) {
                     if (selectedOption == 0) {
                         gameState = GameState::PLAYING;
-                        score = 0; // Reset the score when starting a new game
-                        ball.reset(sf::Vector2f(0.1f, -0.1f)); // Restart the ball
-                        for (auto& brick : bricks) {
-                            brick.reset();
-                        }
+                        resetGame(ball, paddle, bricks, score, level);
+                    }
+                    else if (selectedOption == 1) {
+                        gameState = GameState::MENU;
+                        selectedOption = 0; // Reset selectedOption
+                        menu.levelSelectText.setString("Select Starting Level: " + std::to_string(level));
                     }
                     else {
                         gameState = GameState::EXIT;
+                    }
+                }
+            }
+            else if (event.type == sf::Event::KeyReleased) {
+                if (event.key.code == sf::Keyboard::Up && selectedOption == 1) {
+                    if (level > 1) {
+                        level--; // Decrease level by 1
+                        menu.levelSelectText.setString("Select Starting Level: " + std::to_string(level));
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::Down && selectedOption == 1) {
+                    if (level < 2) {  // Update this condition to level < maximum level you want
+                        level++; // Increase level by 1
+                        menu.levelSelectText.setString("Select Starting Level: " + std::to_string(level));
                     }
                 }
             }
@@ -223,12 +279,8 @@ int main() {
         if (gameState == GameState::GAME_OVER) {
             if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::Return) {
-                    gameState = GameState::PLAYING;
-                    score = 0; // Reset the score when restarting
-                    ball.reset(sf::Vector2f(0.1f, -0.1f)); // Restart the ball
-                    for (auto& brick : bricks) {
-                        brick.reset();
-                    }
+                    gameState = GameState::MENU;
+                    level = 1; // Reset the level to 1
                 }
                 else if (event.key.code == sf::Keyboard::Escape) {
                     gameState = GameState::EXIT;
@@ -244,6 +296,7 @@ int main() {
         switch (gameState) {
         case GameState::MENU:
             window.draw(menu.startText);
+            window.draw(menu.levelSelectText);
             window.draw(menu.exitText);
             break;
 
@@ -251,7 +304,8 @@ int main() {
             ball.move();
             paddle.move();
 
-            if (ball.shape.getPosition().x <= 0 || ball.shape.getPosition().x + ball.shape.getRadius() * 2 >= window.getSize().x) {
+            if (ball.shape.getPosition().x <= 0 || ball.shape.getPosition().x + ball.shape.getRadius() * 2 >=
+                window.getSize().x) {
                 ball.velocity.x = -ball.velocity.x;
             }
 
@@ -259,11 +313,8 @@ int main() {
                 ball.velocity.y = -ball.velocity.y;
             }
 
-            // Adjust the paddle collision to prevent it from going into the wall
             if (ball.shape.getGlobalBounds().intersects(paddle.shape.getGlobalBounds())) {
                 ball.velocity.y = -ball.velocity.y;
-
-                // Adjust the ball position to prevent it from getting stuck in the paddle
                 float overlap = ball.shape.getPosition().y + ball.shape.getRadius() - paddle.shape.getPosition().y;
                 ball.shape.move(0, -2 * overlap);
             }
@@ -272,7 +323,7 @@ int main() {
                 if (!brick.isDestroyed && ball.shape.getGlobalBounds().intersects(brick.shape.getGlobalBounds())) {
                     brick.isDestroyed = true;
                     ball.velocity.y = -ball.velocity.y;
-                    score++; // Increase score when a brick is hit
+                    score++;
                 }
             }
 
@@ -285,14 +336,12 @@ int main() {
                 }
             }
 
-            // Draw scoreText on top of everything
             scoreText.setString("Press Esc to Pause\nBricks Destroyed: " + std::to_string(score));
             window.draw(scoreText);
 
+            levelText.setString("Level: " + std::to_string(level));
+            window.draw(levelText);
 
-
-
-            // Check if the ball touched the ground
             if (ball.shape.getPosition().y + ball.shape.getRadius() * 2 >= window.getSize().y) {
                 gameState = GameState::GAME_OVER;
             }
