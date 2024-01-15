@@ -24,7 +24,7 @@ public:
     }
 
     void reset(sf::Vector2f initialVelocity, float speedMultiplier) {
-        shape.setPosition(400, 300);
+        shape.setPosition(200, 250);
         velocity = initialVelocity;
         this->speedMultiplier = speedMultiplier;
     }
@@ -109,21 +109,21 @@ sf::Color getRandomColor() {
     return sf::Color(red, green, blue);
 }
 
-void resetGame(Ball& ball, Paddle& paddle, std::vector<Brick>& bricks, int& score, int& level) {
-    ball.reset(sf::Vector2f(0.1f, -0.1f), 1.0f);
-    paddle.velocity = sf::Vector2f(0.0f, 0.0f);
-    score = 0;
+void resetGame(Ball* ball, Paddle* paddle, std::vector<Brick>* bricks, int* score, int* level) {
+    ball->reset(sf::Vector2f(0.1f, -0.1f), 1.0f);
+    paddle->velocity = sf::Vector2f(0.0f, 0.0f);
+    *score = 0;
 
-    bricks.clear();
-    const int brickRowCount = 5 + level;
-    const int brickColumnCount = 10 + level;
+    bricks->clear();
+    const int brickRowCount = 5 + *level;
+    const int brickColumnCount = 10 + *level;
     const float brickWidth = 70.0f;
     const float brickHeight = 20.0f;
 
     for (int i = 0; i < brickRowCount; ++i) {
         for (int j = 0; j < brickColumnCount; ++j) {
             sf::Color color = getRandomColor();
-            bricks.push_back(Brick(brickWidth, brickHeight, color,
+            bricks->push_back(Brick(brickWidth, brickHeight, color,
                 sf::Vector2f(j * brickWidth, i * brickHeight)));
         }
     }
@@ -220,7 +220,8 @@ int main() {
                 else if (event.key.code == sf::Keyboard::Return) {
                     if (selectedOption == 0) {
                         gameState = GameState::PLAYING;
-                        resetGame(ball, paddle, bricks, score, level);
+                        resetGame(&ball, &paddle, &bricks, &score, &level);
+
                     }
                     else if (selectedOption == 1) {
                         gameState = GameState::MENU;
