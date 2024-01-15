@@ -64,6 +64,30 @@ public:
     }
 };
 
+class IrregularShape {
+public:
+    sf::ConvexShape shape;
+
+    IrregularShape() {
+        shape.setPointCount(10); // 10 punktów tworzących gwiazdę
+        shape.setPoint(0, sf::Vector2f(10, 0));
+        shape.setPoint(1, sf::Vector2f(3, 9));
+        shape.setPoint(2, sf::Vector2f(0, 3));
+        shape.setPoint(3, sf::Vector2f(-3, 9));
+        shape.setPoint(4, sf::Vector2f(-10, 0));
+        shape.setPoint(5, sf::Vector2f(-3, -9));
+        shape.setPoint(6, sf::Vector2f(0, -3));
+        shape.setPoint(7, sf::Vector2f(3, -9));
+        shape.setPoint(8, sf::Vector2f(10, 0));
+        shape.setPoint(9, sf::Vector2f(3, 9));
+
+        shape.setFillColor(sf::Color::Yellow);
+        shape.setPosition(100, 100);
+
+        shape.setScale(3.0f, 3.0f);
+    }
+};
+
 class Menu {
 public:
     sf::Text startText;
@@ -151,6 +175,8 @@ int main() {
     levelText.setFillColor(sf::Color::Yellow);
     levelText.setPosition(550, 550);
 
+    IrregularShape irregularShape;
+
     sf::Text scoreText;
     scoreText.setFont(menu.font);
     scoreText.setCharacterSize(30);
@@ -158,12 +184,17 @@ int main() {
     scoreText.setPosition(10, 520);
 
     // Load background image
-    sf::Texture backgroundTexture;
-    if (!backgroundTexture.loadFromFile("images/background.png")) {
+    sf::Texture backgroundTextureLevel1;
+    sf::Texture backgroundTextureLevel2;
+
+    if (!backgroundTextureLevel1.loadFromFile("images/background.png") ||
+        !backgroundTextureLevel2.loadFromFile("images/background2.jpg")) {
         std::cerr << "Error loading background image\n";
         return 1;
     }
-    sf::Sprite backgroundSprite(backgroundTexture);
+
+    sf::Sprite backgroundSprite;
+    backgroundSprite.setTexture(backgroundTextureLevel1);
 
     bool escapePressed = false;
 
@@ -254,7 +285,9 @@ int main() {
                 gameState = GameState::PAUSED;
                 sf::sleep(sf::milliseconds(200));
             }
-
+            if (level == 2) {
+                backgroundSprite.setTexture(backgroundTextureLevel2);
+            }
             paddle.velocity.x = 0.0f;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) &&
@@ -293,6 +326,8 @@ int main() {
 
         // Draw background
         window.draw(backgroundSprite);
+        // Draw irregular shape in the menu
+        window.draw(irregularShape.shape);
 
         switch (gameState) {
         case GameState::MENU:
